@@ -6,7 +6,7 @@
     "commands": {
       "_execute_action": {
         "suggested_key": {
-          "default": "Ctrl+Shift+Y"
+          "default": "Ctrl+Shift+E"
         },
         "description": "Trigger screenshot"
       }
