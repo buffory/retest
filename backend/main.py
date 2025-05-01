@@ -1,13 +1,15 @@
 import base64
 import io
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import zipfile
+import os
+from io import BytesIO
 from openai import OpenAI
 from PIL import Image
 import re
-import os
 import xai_sdk
 
 # Load environment variables
@@ -17,8 +19,9 @@ load_dotenv()
 # FastAPI app instance
 app = FastAPI()
 
-XAI_API_KEY = os.getenv("XAI_API_KEY")
 image_path = "..."
+
+EXTENSIONS_DIR = f"{os.getcwd()}/extension"
 
 client = OpenAI(
     api_key=os.getenv('OPENAI_API_KEY')
@@ -75,3 +78,25 @@ async def process_image(data: ImageData):
     except Exception as e:
         print(e)
         raise HTTPException(status_code=500, detail=f"Error processing image: {e}")
+
+@app.get("/download/extension.zip")
+async def download_extension_zip():
+    if not os.path.exists(EXTENSIONS_DIR):
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    zip_io = BytesIO()
+    with zipfile.ZipFile(zip_io, mode="w", compression=zipfile.ZIP_DEFLATED) as zipf:
+        for root, _, files in os.walk(EXTENSIONS_DIR):
+            for file in files:
+                file_path = os.path.join(root, file)
+                # This ensures the folder name is preserved
+                arcname = os.path.relpath(file_path, os.path.dirname(EXTENSIONS_DIR))
+                zipf.write(file_path, arcname)
+
+    zip_io.seek(0)
+
+    return StreamingResponse(
+        zip_io,
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename=extension.zip"}
+    )
